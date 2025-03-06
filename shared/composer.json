@@ -1,0 +1,20 @@
+{
+  "name": "ecommerce/shared",
+  "description": "Shared components for e-commerce microservices",
+  "type": "library",
+  "require": {
+    "php": "^7.4|^8.0",
+    "php-amqplib/php-amqplib": "^3.0",
+    "ext-json": "*"
+  },
+  "autoload": {
+    "psr-4": {
+      "Ecommerce\\Shared\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Ecommerce\\Shared\\Tests\\": "tests/"
+    }
+  }
+}

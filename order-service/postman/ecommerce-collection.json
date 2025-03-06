@@ -1,0 +1,42 @@
+{
+	"info": {
+		"_postman_id": "eb312673-6c08-4c05-972b-8639cf507e58",
+		"name": "E-Commerce Microservices Test",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25721122"
+	},
+	"item": [
+		{
+			"name": "Create Order",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"user_id\": 7,\r\n    \"items\": [\r\n        { \"product_id\": 9, \"quantity\": 2 },\r\n        { \"product_id\": 10, \"quantity\": 1 }\r\n    ],\r\n    \"total\": 115.77\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "http://127.0.0.1:8000/api/orders",
+					"protocol": "http",
+					"host": [
+						"127",
+						"0",
+						"0",
+						"1"
+					],
+					"port": "8000",
+					"path": [
+						"api",
+						"orders"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

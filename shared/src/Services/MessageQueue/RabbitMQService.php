@@ -113,7 +113,13 @@ class RabbitMQService
     }
 
     /**
-     * Publish message to queue with retry on failure
+     * Публикация в очередь
+     * @param string $routingKey Ключ маршрутизации
+     * @param array $data
+     * @param string|null $queue
+     * @param string|null $exchange
+     * @param int $retries
+     * @return void
      */
     public function publishMessage(
         string $routingKey,
@@ -196,7 +202,7 @@ class RabbitMQService
                     try {
                         // Process the message
                         $callback($message);
-                        // Acknowledge if successful
+                        // Даем знать rabbitmq что сообщение успешно получено
                         $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
                         return;
                     } catch (\Exception $e) {

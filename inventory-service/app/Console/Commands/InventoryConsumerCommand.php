@@ -7,6 +7,9 @@ use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
+/**
+ * Это команда консумера для подписки на сообщения
+ */
 class InventoryConsumerCommand extends Command
 {
     /**
@@ -23,6 +26,11 @@ class InventoryConsumerCommand extends Command
      */
     protected $description = 'Consume order created events';
 
+    /**
+     * Сервис Rabbit, который использует данная команда консумера
+     *
+     * @var RabbitMQService
+     */
     private RabbitMQService $rabbitMQService;
 
     /**
@@ -42,16 +50,23 @@ class InventoryConsumerCommand extends Command
     }
 
     /**
-     * Execute the console command.
+     * В этой команде происходит подписывание на сообщения RabbitMQ
      */
     public function handle(): void
     {
+        /*
+         * Внутрь функции "consumeMessages" происходит передача коллбэка в виде анонимной функции.
+         * В функции имеется параметр $message-сообщение
+         */
+
         $this->rabbitMQService->consumeMessages('order_created', function ($message) {
             try {
-                // Decode the message body
+                // Декодирование тела сообщения "$message->body"
                 $orderData = json_decode($message->body, true);
+                //Получает идентификатор заказа
                 $orderId = $orderData['payload']['order_id'];
 
+                //Получает элементы связанные с заказом из Базы Данных
                 $orderItems = DB::table('order_items')
                     ->join('products', 'order_items.product_id', '=', 'products.id')
                     ->join('orders', 'order_items.order_id', '=', 'orders.id')
@@ -59,15 +74,16 @@ class InventoryConsumerCommand extends Command
                     ->select('order_items.quantity', 'products.id as product_id', 'products.name', 'products.stock')
                     ->get();
 
-                // Loop through the order items and update inventory
+                // Цикл по элементам заказа
                 foreach ($orderItems as $orderItem) {
+                    //Если остаток товара больше заказанного количества
                     if ($orderItem->stock >= $orderItem->quantity) {
-                        // Update the stock
+                        // Уменьшаем остаток товара
                         DB::table('products')
                             ->where('id', $orderItem->product_id)
                             ->decrement('stock', $orderItem->quantity);
 
-                        // Log the inventory change into the inventory_logs table
+                        // Сохраняем количество в инвертаризационные логи. Это логи о продаже товара
                         DB::table('inventory_logs')->insert([
                             'product_id' => $orderItem->product_id,
                             'quantity' => -$orderItem->quantity,
@@ -77,24 +93,24 @@ class InventoryConsumerCommand extends Command
                             'updated_at' => now(),
                         ]);
                     } else {
-                        // If not enough stock, log an error (or handle it in some way)
+                        //Сообщение что товаров недостаточно для продажи
                         $this->error("Not enough stock for product ID: {$orderItem->product_id}");
                     }
                 }
 
-                // Publish to the next queue
+                // Создаем новое сообщение в Rabbit о том что осуществляется инвертаризация
                 $this->rabbitMQService->publishMessage('inventory_processed', [
                     'order_id' => $orderId,
                 ]);
 
-                // Acknowledge the message
+                // Даёт знать rabbitMQ что сообщение успешно получено. Чтобы избежать переполнений памяти. Вообщем так корректно будет
                 $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
                 $this->info('Inventory updated successfully for Order ID: ' . $orderId);
             } catch (\Exception $e) {
                 // Log any errors to the console
                 $this->error('Inventory processing error: ' . $e->getMessage());
 
-                // Reject the message and requeue it
+                // Даёт знать rabbitMQ что произошла ошибка при обработки сообщений rabbitMQ
                 if (isset($message->delivery_info)) {
                     $message->delivery_info['channel']->basic_reject($message->delivery_info['delivery_tag'], true);
                 }

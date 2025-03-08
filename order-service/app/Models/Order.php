@@ -5,6 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Модель работающая с таблицей заказов
+ */
 class Order extends Model
 {
     use HasFactory;

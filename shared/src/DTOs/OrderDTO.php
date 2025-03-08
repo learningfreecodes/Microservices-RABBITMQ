@@ -2,6 +2,9 @@
 
 namespace Ecommerce\Shared\DTOs;
 
+/**
+ * Объект DTO о заказе
+ */
 class OrderDTO
 {
     public string $orderId;
@@ -19,6 +22,11 @@ class OrderDTO
         $this->status = $data['status'] ?? 'pending';
     }
 
+    /**
+     * Перевод в массивы
+     *
+     * @return array
+     */
     public function toArray(): array
     {
         return [

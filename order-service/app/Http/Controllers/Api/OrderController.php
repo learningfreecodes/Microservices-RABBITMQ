@@ -43,7 +43,7 @@ class OrderController extends Controller
      */
     public function createOrder(Request $request): JsonResponse
     {
-        // Validate request
+        // Валидация реквеста
         $validated = $request->validate([
             'user_id' => 'required|integer',
             'items' => 'required|array|min:1',
@@ -53,7 +53,7 @@ class OrderController extends Controller
         ]);
 
         try {
-            // Create DTO from validated order data
+            // Создаётся DTO-объект после валидации данных
             $orderDTO = new OrderDTO([
                 'order_id' => uniqid('order_'),
                 'user_id' => $validated['user_id'],
@@ -61,7 +61,7 @@ class OrderController extends Controller
                 'items' => $validated['items'],
             ]);
 
-            // Save Order in Database
+            // Данные DTO сохраняются в Базу Данных
             $order = Order::query()->create([
                 'order_id' => $orderDTO->orderId,
                 'user_id' => $orderDTO->userId,
@@ -69,7 +69,7 @@ class OrderController extends Controller
                 'status' => $orderDTO->status,
             ]);
 
-            // Save Order Items
+            // Элементы заказа сохраняются в Базу Данных
             foreach ($orderDTO->items as $item) {
                 $product = Product::query()->findOrFail($item['product_id']);
 
@@ -83,6 +83,7 @@ class OrderController extends Controller
 
             // Create and publish the event using DTO
             $event = new OrderCreated($orderDTO);
+            //Публикуется сообщение в RabbitMQ о том что заказ создан для его обработки
             $this->rabbitMQService->publishMessage('order_created', $event->toArray());
 
             return response()->json(['message' => 'Order placed successfully!'], 201);

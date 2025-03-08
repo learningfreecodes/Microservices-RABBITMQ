@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Random\RandomException;
 
+/**
+ * Команда работающая с сообщениями по ключу роутинга "inventory_processed"
+ */
 class InventoryConsumerCommand extends Command
 {
     /**
@@ -49,20 +52,22 @@ class InventoryConsumerCommand extends Command
      */
     public function handle(): void
     {
+        //Подписка на события 'inventory_processed'
         $this->rabbitMQService->consumeMessages('inventory_processed', function ($message) {
             try {
-                // Decode the message body
+                // Десериализация сообщения
                 $data = json_decode($message->body, true);
                 $orderId = $data['order_id'];
 
-                // Retrieve order and user details
+                // Восттанавливаем по данным события запаиси о заказах в Базе Данных
                 $order = DB::table('orders')->where('order_id', $orderId)->first();
 
                 if (!$order) {
                     throw new \Exception("Order with ID {$orderId} not found.");
                 }
 
-                // Create notification
+                // Создаем нотификацию в Базе Данных о том что заказа обработан
+
                 $notificationId = DB::table('notifications')->insertGetId([
                     'user_id' => $order->user_id,
                     'title' => 'Your order has been processed!',
@@ -72,15 +77,15 @@ class InventoryConsumerCommand extends Command
                     'updated_at' => now(),
                 ]);
 
-                // Simulate notification sending (e.g., via email or SMS)
+                // Отправка нотификацию на какой-нибудь внешний сервис
                 $isSent = $this->sendNotification($notificationId);
 
-                // Update notification status
+                // Обновление статуса нотификации
                 DB::table('notifications')
                     ->where('id', $notificationId)
                     ->update(['status' => $isSent ? 'sent' : 'failed']);
 
-                // Create a log entry
+                // Логгируем нотификацию
                 DB::table('notification_logs')->insert([
                     'notification_id' => $notificationId,
                     'status' => $isSent ? 'sent' : 'failed',
@@ -89,14 +94,14 @@ class InventoryConsumerCommand extends Command
                     'updated_at' => now(),
                 ]);
 
-                // Acknowledge the message
+                //Сообщаем RabbitMQ о том что сообщение обработано
                 $message->delivery_info['channel']->basic_ack($message->delivery_info['delivery_tag']);
                 $this->info("Notification processed successfully for Order ID: {$orderId}");
             } catch (\Exception $e) {
                 // Log error to console
                 $this->error("Notification processing error: " . $e->getMessage());
 
-                // Optionally reject the message and requeue it
+                // Сообщаем RabbitMQ о том что при обработке сообщения произошла ошибка
                 if (isset($message->delivery_info)) {
                     $message->delivery_info['channel']->basic_reject($message->delivery_info['delivery_tag'], true);
                 }
